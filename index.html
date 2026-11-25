@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Uncle Whisperer</title>
+<style>
+  :root { --bg:#fbf6ec; --card:#fffdf8; --ink:#2b2118; --soft:#6b5b4c; --line:#e4d7c2; --accent:#b4491f; --accent-ink:#fff; --good:#2f6b3f; --warn:#8a2c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1d1712; --card:#27201a; --ink:#f3e9db; --soft:#bfae9a; --line:#42362b; --accent:#e0703f; --accent-ink:#1d1712; --good:#8fcf9f; --warn:#f0988a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.55 Georgia, "Times New Roman", serif; }
+  main { max-width:720px; margin:0 auto; padding:28px 16px 60px; }
+  h1 { font-size:2rem; margin:0 0 4px; }
+  h2 { font-size:1.15rem; margin:0 0 8px; }
+  p { margin:0 0 12px; }
+  .lead { color:var(--soft); margin-bottom:22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-weight:bold; margin:12px 0 4px; }
+  input, textarea { width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
+  textarea { min-height:120px; resize:vertical; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); padding:9px 14px; }
+  button.go { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:bold; margin-top:14px; padding:12px 20px; }
+  button:disabled { opacity:.55; cursor:wait; }
+  .samples { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .part { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
+  .part:first-of-type { border-top:0; padding-top:0; margin-top:0; }
+  .tag { font:bold .78rem/1 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; color:var(--soft); margin-bottom:4px; }
+  .tag.no { color:var(--warn); } .tag.yes { color:var(--good); }
+  .clue { color:var(--soft); font-style:italic; }
+  .reply { font-size:1.1rem; }
+  .small { font:.85rem/1.4 system-ui, sans-serif; color:var(--soft); }
+  .error { color:var(--warn); font-weight:bold; }
+  ul { margin:0; padding-left:20px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>The Uncle Whisperer</h1>
+  <p class="lead">A relative sent you a message before Thanksgiving dinner, and you do not know how to answer it. Paste the message here. The agent tells you what is really bothering the relative who wrote it, what you should not answer, and one sentence you can send back.</p>
+
+  <section class="card">
+    <h2>1. Paste the message your relative sent you</h2>
+    <p class="small">No message at hand? Press one of these three buttons, and the agent fills the form with a sample message:</p>
+    <div class="samples">
+      <button type="button" data-sample="0">Your uncle complains about the seating</button>
+      <button type="button" data-sample="1">Your mother says not to cook</button>
+      <button type="button" data-sample="2">Your brother asks who is coming</button>
+    </div>
+    <p class="small" id="scene" hidden></p>
+    <label for="relative">Who sent you the message?</label>
+    <input id="relative" maxlength="40" placeholder="For example: Uncle Ray">
+    <label for="message">The message this relative wrote to you</label>
+    <textarea id="message" maxlength="1500" placeholder="Paste the relative's message here, word for word."></textarea>
+    <button class="go" id="go" type="button">Read this message for me</button>
+    <p class="error" id="error" hidden></p>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <h2 id="result-title"></h2>
+    <div class="part" id="before-part" hidden>
+      <div class="tag">The agent remembers this relative</div>
+      <p id="before"></p>
+    </div>
+    <div class="part">
+      <div class="tag">What is really bothering this relative</div>
+      <p id="bothering"></p>
+      <p class="clue" id="clue"></p>
+    </div>
+    <div class="part">
+      <div class="tag no">What you should not answer</div>
+      <p id="dont"></p>
+    </div>
+    <div class="part">
+      <div class="tag yes">One sentence you can send back</div>
+      <p class="reply" id="reply"></p>
+      <button type="button" id="copy">Copy this sentence</button>
+    </div>
+  </section>
+
+  <section class="card" id="memory" hidden>
+    <h2>2. Relatives the agent remembers for you</h2>
+    <p class="small">The agent keeps a short note about each relative on its own computer. When the same relative writes to you again, paste the new message, and the agent compares it with the earlier one.</p>
+    <ul id="relatives"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Where this agent runs</h2>
+    <p class="small" id="proof">Checking the computer this agent runs on…</p>
+    <p class="small">This demo keeps the first 300 characters of each message you paste, so that the agent can remember the relative. Your browser gets a random number, and the agent shows your relatives only to that browser. Do not paste anything private.</p>
+  </section>
+</main>
+<script>
+(function () {
+  var SAMPLES = [
+    { who: "Uncle Ray",
+      scene: "The scene: you host Thanksgiving dinner this year. Last year you seated Uncle Ray at the small folding table with the children. Two days before the dinner, Uncle Ray writes to you in the family group chat:",
+      text: "So am I at the kids table again this year or did I finally get promoted? Don't worry about me, I'll bring my own chair." },
+    { who: "Mom",
+      scene: "The scene: for thirty years your mother cooked Thanksgiving dinner. This year you offered to host and cook, for the first time. Your mother writes to you:",
+      text: "Don't go to any trouble honey. Dad and I will eat something before we come, so you really don't need to cook that much. I'll bring my stuffing just in case." },
+    { who: "My brother Dan",
+      scene: "The scene: your brother Dan and your cousin Mike stopped speaking after an argument about money in the summer. You invited both of them to Thanksgiving dinner. Dan writes to you:",
+      text: "Quick question before I book flights. Who else is coming? Just want to know what I'm walking into." }
+  ];
+  function $(id) { return document.getElementById(id); }
+  function familyId() {
+    var id = "";
+    try { id = localStorage.getItem("uncle-family") || ""; } catch (e) {}
+    if (!/^[a-f0-9]{32}$/.test(id)) {
+      var bytes = new Uint8Array(16); crypto.getRandomValues(bytes);
+      id = Array.prototype.map.call(bytes, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+      try { localStorage.setItem("uncle-family", id); } catch (e) {}
+    }
+    return id;
+  }
+  var FAMILY = familyId();
+
+  document.querySelectorAll("[data-sample]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var s = SAMPLES[Number(button.getAttribute("data-sample"))];
+      $("relative").value = s.who; $("message").value = s.text;
+      $("scene").textContent = s.scene; $("scene").hidden = false;
+    });
+  });
+
+  function showError(text) { $("error").textContent = text; $("error").hidden = !text; }
+
+  function loadRelatives() {
+    fetch("/api/relatives", { headers: { "X-Family": FAMILY } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var list = $("relatives"); list.textContent = "";
+        (data.relatives || []).forEach(function (rel) {
+          var li = document.createElement("li");
+          var times = rel.times === 1 ? "1 message" : rel.times + " messages";
+          li.textContent = rel.last.relative + " (" + times + " read). Last time, on " + rel.last.day + ": " + rel.last.bothering;
+          list.appendChild(li);
+        });
+        $("memory").hidden = !(data.relatives && data.relatives.length);
+      }).catch(function () {});
+  }
+
+  $("go").addEventListener("click", function () {
+    var relative = $("relative").value.trim(), message = $("message").value.trim();
+    if (!relative || message.length < 3) { showError("Write who sent you the message, and paste the message."); return; }
+    showError(""); $("go").disabled = true; $("go").textContent = "The agent is reading the message…";
+    fetch("/api/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Family": FAMILY },
+      body: JSON.stringify({ relative: relative, message: message })
+    }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (!res.ok) { showError(res.data.error || "The agent could not read the message. Try again."); return; }
+        var d = res.data;
+        $("result-title").textContent = "What the agent read in the message from " + d.relative;
+        $("bothering").textContent = d.bothering;
+        $("clue").textContent = d.clue ? "The words that gave it away: “" + d.clue + "”" : "";
+        $("dont").textContent = d.dont;
+        $("reply").textContent = d.reply;
+        $("before").textContent = d.seen_before || "";
+        $("before-part").hidden = !d.seen_before;
+        $("result").hidden = false;
+        $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+        loadRelatives();
+      })
+      .catch(function () { showError("The agent did not answer. Check your connection and try again."); })
+      .then(function () { $("go").disabled = false; $("go").textContent = "Read this message for me"; });
+  });
+
+  $("copy").addEventListener("click", function () {
+    var text = $("reply").textContent;
+    function done() { $("copy").textContent = "Copied"; setTimeout(function () { $("copy").textContent = "Copy this sentence"; }, 1500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function () {}); }
+  });
+
+  fetch("/api/connected").then(function (r) { return r.json(); }).then(function (c) {
+    if (c.runs_on_sprite && c.openrouter_ready) {
+      $("proof").textContent = "This agent runs on a Fly.io Sprite, a small rented Linux computer that sleeps when nobody uses it. The agent reaches its language model (" + c.models[0] + ", a free open model) through the Sprites OpenRouter connector, so the agent's code holds no API key. Connectors this Sprite may use right now: " + c.connected_providers.join(", ") + ".";
+    } else if (c.runs_on_sprite) {
+      $("proof").textContent = "This agent runs on a Fly.io Sprite, but the Sprite has no OpenRouter connector yet, so the agent cannot read messages.";
+    } else {
+      $("proof").textContent = "This copy of the agent does not run on a Fly.io Sprite, so it cannot reach the Sprites connector and cannot read messages.";
+    }
+  }).catch(function () { $("proof").textContent = "The agent could not check its connector."; });
+
+  loadRelatives();
+})();
+</script>
+</body>
+</html>
